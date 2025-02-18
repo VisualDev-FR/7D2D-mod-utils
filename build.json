@@ -1,0 +1,14 @@
+{
+    "name": "mod-utils",
+    "csproj": "mod-utils.csproj",
+    "include": [
+        "ModInfo.xml",
+        "Config",
+        "UIAtlases",
+        "Resources",
+        "Prefabs"
+    ],
+    "prefabs": [],
+    "dependencies": [],
+    "clear_saves": []
+}
