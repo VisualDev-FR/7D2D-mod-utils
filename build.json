@@ -1,5 +1,5 @@
 {
-    "name": "mod-utils",
+    "name": "7D2D-mod-utils",
     "csproj": "mod-utils.csproj",
     "include": [
         "ModInfo.xml",

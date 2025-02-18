@@ -1,5 +1,6 @@
 using System.Linq;
 
+
 public enum LoggingLevel : byte
 {
     DEBUG,
@@ -64,7 +65,7 @@ public class Logging
 
     public static readonly LoggingLevel loggingLevel = LoggingLevel.DEBUG;
 
-    private static readonly Logger root = new Logger("TheDescent", loggingLevel);
+    private static readonly Logger root = new Logger("Unknown", loggingLevel);
 
     public static Logger CreateLogger(string name, LoggingLevel level = LoggingLevel.DEBUG)
     {
@@ -90,4 +91,5 @@ public class Logging
     {
         root.Error(objects);
     }
+
 }
