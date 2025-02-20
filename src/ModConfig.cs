@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using UnityEngine;
+
 
 public class ModConfig
 {
@@ -9,18 +11,45 @@ public class ModConfig
 
     private readonly XmlDocument document;
 
-    public ModConfig(string modName)
+    private readonly string modName;
+
+    private readonly int version;
+
+    public ModConfig(string modName, int version = 0, bool save = true)
     {
-        // modName must equals the one defined in ModInfo.xml
-        var mod = ModManager.GetMod(modName);
-        var modConfig = Path.GetFullPath($"{mod.Path}/ModConfig.xml");
+        this.modName = modName;
+        this.version = version;
 
-        document = new XmlDocument();
+        if (!ExistsFromModFolder(modName))
+            throw new FileNotFoundException($"Can't find ModConfig.xml for mod '{modName}'");
 
-        using (var reader = new StreamReader(modConfig))
+        if (ExistsFromUserData(modName))
+            document = ReadFromUserData(modName);
+
+        if (document is null || GetVersion(document) < version)
+            document = ReadFromModFolder(modName);
+
+        if (save)
         {
-            document.LoadXml(reader.ReadToEnd());
+            SaveToUserData();
         }
+
+        properties = ParseProperties(document);
+    }
+
+    public int GetVersion(XmlDocument document)
+    {
+        if (document.DocumentElement.TryGetAttribute("version", out var version))
+        {
+            return int.Parse(version);
+        }
+
+        return 0;
+    }
+
+    public Dictionary<string, string> ParseProperties(XmlDocument document)
+    {
+        var properties = new Dictionary<string, string>();
 
         foreach (XmlNode property in document.GetElementsByTagName("property"))
         {
@@ -32,6 +61,8 @@ public class ModConfig
                 properties[name] = value;
             }
         }
+
+        return properties;
     }
 
     public string GetProperty(string name)
@@ -42,6 +73,16 @@ public class ModConfig
         }
 
         throw new KeyNotFoundException(name);
+    }
+
+    public void SetProperty(string name, object value)
+    {
+        properties[name] = value.ToString();
+    }
+
+    public void SetProperty(string name, IEnumerable<object> values)
+    {
+        properties[name] = string.Join(",", values.ToList());
     }
 
     public float GetFloat(string name)
@@ -101,14 +142,75 @@ public class ModConfig
         );
     }
 
-    public static BlockValue GetBlockValue(string blockName)
+    private string GetPathFromUserData(string modName)
     {
-        if (Block.nameToBlock.TryGetValue(blockName, out var block))
+        return $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
+    }
+
+    private string GetPathFromModFolder(string modName)
+    {
+        var mod = ModManager.GetMod(modName);
+
+        return Path.GetFullPath($"{mod.Path}/ModConfig.xml");
+    }
+
+    private bool ExistsFromUserData(string modName)
+    {
+        var path = GetPathFromUserData(modName);
+
+        return File.Exists(path);
+    }
+
+    private bool ExistsFromModFolder(string modName)
+    {
+        var path = GetPathFromModFolder(modName);
+
+        return File.Exists(path);
+    }
+
+    public XmlDocument ReadFromPath(string path)
+    {
+        var xmlDocument = new XmlDocument();
+
+        using (var reader = new StreamReader(path))
         {
-            return block.ToBlockValue();
+            xmlDocument.LoadXml(reader.ReadToEnd());
         }
 
-        throw new InvalidDataException($"block '{blockName}' does not exist. (case maybe invalid)");
+        Logging.Info($"read '{path}', version={GetVersion(xmlDocument)}");
+
+        return xmlDocument;
+    }
+
+    public XmlDocument ReadFromModFolder(string modName)
+    {
+        var path = GetPathFromModFolder(modName);
+
+        return ReadFromPath(path);
+    }
+
+    public XmlDocument ReadFromUserData(string modName)
+    {
+        var path = $"{GameIO.GetUserGameDataDir()}/{modName}.modconfig.xml";
+
+        return ReadFromPath(path);
+    }
+
+    public void SaveToPath(string path)
+    {
+        document.DocumentElement.SetAttribute("version", version.ToString());
+
+        using (var writer = new StreamWriter(path))
+        {
+            document.Save(writer);
+        }
+
+        Logging.Info($"'{Path.GetFileName(path)}' saved");
+    }
+
+    public void SaveToUserData()
+    {
+        SaveToPath(GetPathFromUserData(modName));
     }
 
 }
