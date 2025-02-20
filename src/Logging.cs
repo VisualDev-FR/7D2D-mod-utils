@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Reflection;
 
 
 public enum LoggingLevel : byte
@@ -17,7 +18,7 @@ public class Logging
     {
         public LoggingLevel loggingLevel = LoggingLevel.DEBUG;
 
-        public string loggerName = "Cave";
+        public string loggerName;
 
         public Logger(string name, LoggingLevel level = LoggingLevel.DEBUG)
         {
@@ -74,21 +75,25 @@ public class Logging
 
     public static void Debug(params object[] objects)
     {
+        root.loggerName = Assembly.GetCallingAssembly().GetName().Name;
         root.Debug(objects);
     }
 
     public static void Info(params object[] objects)
     {
+        root.loggerName = Assembly.GetCallingAssembly().GetName().Name;
         root.Info(objects);
     }
 
     public static void Warning(params object[] objects)
     {
+        root.loggerName = Assembly.GetCallingAssembly().GetName().Name;
         root.Warning(objects);
     }
 
     public static void Error(params object[] objects)
     {
+        root.loggerName = Assembly.GetCallingAssembly().GetName().Name;
         root.Error(objects);
     }
 
