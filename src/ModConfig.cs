@@ -142,6 +142,32 @@ public class ModConfig
         );
     }
 
+    public LoggingLevel GetLoggingLevel(string name)
+    {
+        var loggingLevel = GetProperty(name);
+
+        switch (loggingLevel.ToLower())
+        {
+            case "debug":
+                return LoggingLevel.DEBUG;
+
+            case "info":
+                return LoggingLevel.INFO;
+
+            case "warning":
+                return LoggingLevel.WARNING;
+
+            case "error":
+                return LoggingLevel.ERROR;
+
+            case "none":
+                return LoggingLevel.NONE;
+
+            default:
+                throw new KeyNotFoundException(loggingLevel);
+        }
+    }
+
     private string GetPathFromUserData(string modName)
     {
         return $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
