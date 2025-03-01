@@ -15,7 +15,7 @@ public class ModConfig
 
     private readonly int version;
 
-    public ModConfig(string modName, int version = 0, bool save = true)
+    public ModConfig(string modName, int version = 0, bool save = false)
     {
         this.modName = modName;
         this.version = version;
