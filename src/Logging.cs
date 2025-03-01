@@ -73,6 +73,14 @@ public class Logging
         return new Logger(name, level);
     }
 
+    public static Logger CreateLogger<T>(LoggingLevel level = LoggingLevel.DEBUG)
+    {
+        return new Logger(
+            name: $"{Assembly.GetCallingAssembly().GetName().Name}.{typeof(T).Name}",
+            level: level
+        );
+    }
+
     public static void Debug(params object[] objects)
     {
         root.loggerName = Assembly.GetCallingAssembly().GetName().Name;
