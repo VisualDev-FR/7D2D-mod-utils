@@ -20,6 +20,9 @@ public class ModConfig
         this.modName = modName;
         this.version = version;
 
+        if (modName == "")
+            throw new InvalidDataException("modname must not be empty");
+
         if (!ExistsFromModFolder(modName))
             throw new FileNotFoundException($"Can't find ModConfig.xml for mod '{modName}'");
 
@@ -27,7 +30,10 @@ public class ModConfig
             document = ReadFromUserData(modName);
 
         if (document is null || GetVersion(document) < version)
+        {
             document = ReadFromModFolder(modName);
+            TryRemoveFromUserdata(modName);
+        }
 
         if (save)
         {
@@ -220,6 +226,16 @@ public class ModConfig
         var path = $"{GameIO.GetUserGameDataDir()}/{modName}.modconfig.xml";
 
         return ReadFromPath(path);
+    }
+
+    public void TryRemoveFromUserdata(string modName)
+    {
+        var path = GetPathFromUserData(modName);
+
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 
     public void SaveToPath(string path)
