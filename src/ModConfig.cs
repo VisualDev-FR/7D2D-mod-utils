@@ -223,7 +223,7 @@ public class ModConfig
 
     public XmlDocument ReadFromUserData(string modName)
     {
-        var path = $"{GameIO.GetUserGameDataDir()}/{modName}.modconfig.xml";
+        var path = $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
 
         return ReadFromPath(path);
     }
