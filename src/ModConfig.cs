@@ -1,6 +1,6 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Xml;
 using UnityEngine;
@@ -8,6 +8,9 @@ using UnityEngine;
 
 public class ModConfig
 {
+    [AttributeUsage(AttributeTargets.Field)]
+    public class ReadOnlyAttribute : Attribute { }
+
     private readonly Dictionary<string, string> properties = new Dictionary<string, string>();
 
     private readonly XmlDocument document;
@@ -15,6 +18,10 @@ public class ModConfig
     public readonly string modName;
 
     public readonly string modPath;
+
+    public readonly string userDataConfigPath;
+
+    public readonly string modConfigPath;
 
     public readonly int version;
 
@@ -26,21 +33,28 @@ public class ModConfig
         this.modName = callingAssembly.GetName().Name;
         this.version = version;
 
-        if (!ExistsFromModFolder(modName))
+        this.userDataConfigPath = $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
+        this.modConfigPath = Path.GetFullPath($"{modPath}/../ModConfig.xml");
+
+        if (!File.Exists(modConfigPath))
             throw new FileNotFoundException($"Can't find ModConfig.xml for mod '{modName}'");
 
-        if (ExistsFromUserData(modName))
-            document = ReadFromUserData(modName);
+        if (File.Exists(userDataConfigPath))
+            document = ReadXmlDocument(userDataConfigPath);
 
         if (document is null || GetVersion(document) < version)
         {
-            document = ReadFromModFolder(modName);
-            TryRemoveFromUserdata(modName);
+            document = ReadXmlDocument(modConfigPath);
+
+            if (File.Exists(userDataConfigPath))
+            {
+                File.Delete(userDataConfigPath);
+            }
         }
 
         if (save)
         {
-            SaveToUserData();
+            SaveXmlDocument(userDataConfigPath);
         }
 
         properties = ParseProperties(document);
@@ -74,7 +88,7 @@ public class ModConfig
         return properties;
     }
 
-    public string GetProperty(string name)
+    public string GetString(string name)
     {
         if (properties.TryGetValue(name, out var value))
         {
@@ -84,34 +98,24 @@ public class ModConfig
         throw new KeyNotFoundException(name);
     }
 
-    public void SetProperty(string name, object value)
-    {
-        properties[name] = value.ToString();
-    }
-
-    public void SetProperty(string name, IEnumerable<object> values)
-    {
-        properties[name] = string.Join(",", values.ToList());
-    }
-
     public float GetFloat(string name)
     {
-        return float.Parse(GetProperty(name));
+        return float.Parse(GetString(name));
     }
 
     public int GetInt(string name)
     {
-        return int.Parse(GetProperty(name));
+        return int.Parse(GetString(name));
     }
 
     public bool GetBool(string name)
     {
-        return bool.Parse(GetProperty(name));
+        return bool.Parse(GetString(name));
     }
 
     public Vector2 GetVector2(string name)
     {
-        string[] values = GetProperty(name).Split(',');
+        string[] values = GetString(name).Split(',');
 
         return new Vector2(
             float.Parse(values[0].Trim()),
@@ -121,7 +125,7 @@ public class ModConfig
 
     public Vector3 GetVector3(string name)
     {
-        string[] values = GetProperty(name).Split(',');
+        string[] values = GetString(name).Split(',');
 
         return new Vector3(
             float.Parse(values[0].Trim()),
@@ -132,7 +136,7 @@ public class ModConfig
 
     public Vector2i GetVector2i(string name)
     {
-        string[] values = GetProperty(name).Split(',');
+        string[] values = GetString(name).Split(',');
 
         return new Vector2i(
             int.Parse(values[0].Trim()),
@@ -142,7 +146,7 @@ public class ModConfig
 
     public Vector3i GetVector3i(string name)
     {
-        string[] values = GetProperty(name).Split(',');
+        string[] values = GetString(name).Split(',');
 
         return new Vector3i(
             int.Parse(values[0].Trim()),
@@ -153,7 +157,7 @@ public class ModConfig
 
     public LoggingLevel GetLoggingLevel(string name)
     {
-        var loggingLevel = GetProperty(name);
+        var loggingLevel = GetString(name);
 
         switch (loggingLevel.ToLower())
         {
@@ -177,33 +181,19 @@ public class ModConfig
         }
     }
 
-    private string GetPathFromUserData(string modName)
+    public T GetEnum<T>(string name, bool ignoreCase = false) where T : struct
     {
-        return $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
+        string value = GetString(name);
+
+        if (Enum.TryParse<T>(value, ignoreCase, out var result))
+        {
+            return result;
+        }
+
+        throw new InvalidCastException($"value '{value}' cannot be parsed as a '{typeof(T).Name}'");
     }
 
-    private string GetPathFromModFolder(string modName)
-    {
-        var mod = ModManager.GetMod(modName);
-
-        return Path.GetFullPath($"{mod.Path}/ModConfig.xml");
-    }
-
-    private bool ExistsFromUserData(string modName)
-    {
-        var path = GetPathFromUserData(modName);
-
-        return File.Exists(path);
-    }
-
-    private bool ExistsFromModFolder(string modName)
-    {
-        var path = GetPathFromModFolder(modName);
-
-        return File.Exists(path);
-    }
-
-    public XmlDocument ReadFromPath(string path)
+    public XmlDocument ReadXmlDocument(string path)
     {
         var xmlDocument = new XmlDocument();
 
@@ -217,31 +207,7 @@ public class ModConfig
         return xmlDocument;
     }
 
-    public XmlDocument ReadFromModFolder(string modName)
-    {
-        var path = GetPathFromModFolder(modName);
-
-        return ReadFromPath(path);
-    }
-
-    public XmlDocument ReadFromUserData(string modName)
-    {
-        var path = GetPathFromUserData(modName);
-
-        return ReadFromPath(path);
-    }
-
-    public void TryRemoveFromUserdata(string modName)
-    {
-        var path = GetPathFromUserData(modName);
-
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-    }
-
-    public void SaveToPath(string path)
+    public void SaveXmlDocument(string path)
     {
         document.DocumentElement.SetAttribute("version", version.ToString());
 
@@ -253,9 +219,39 @@ public class ModConfig
         Logging.Info($"'{Path.GetFileName(path)}' saved");
     }
 
-    public void SaveToUserData()
+    public static void SetField<T>(string fieldName, string fieldValue, bool save = false)
     {
-        SaveToPath(GetPathFromUserData(modName));
+        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
+
+        if (field.IsDefined(typeof(ReadOnlyAttribute), false))
+        {
+            Logging.Error($"field '{fieldName}' is readOnly");
+            return;
+        }
+
+        field.SetValue(null, Convert.ChangeType(fieldValue, field.FieldType));
+
+        if (save)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public static object GetField<T>(string fieldName = null)
+    {
+        if (fieldName is null)
+        {
+            foreach (var f in typeof(T).GetFields())
+            {
+                Log.Out($"{f.Name} ......... {f.GetValue(null)}");
+            }
+
+            return null;
+        }
+
+        return typeof(T)
+            .GetField(fieldName, BindingFlags.Public | BindingFlags.Static)
+            .GetValue(null);
     }
 
 }
