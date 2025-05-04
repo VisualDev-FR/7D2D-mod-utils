@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Xml;
 using UnityEngine;
 
@@ -11,17 +12,19 @@ public class ModConfig
 
     private readonly XmlDocument document;
 
-    private readonly string modName;
+    public readonly string modName;
 
-    private readonly int version;
+    public readonly string modPath;
 
-    public ModConfig(string modName, int version = 0, bool save = false)
+    public readonly int version;
+
+    public ModConfig(int version = 0, bool save = false)
     {
-        this.modName = modName;
-        this.version = version;
+        var callingAssembly = Assembly.GetCallingAssembly();
 
-        if (modName == "")
-            throw new InvalidDataException("modname must not be empty");
+        this.modPath = Path.GetDirectoryName(callingAssembly.Location);
+        this.modName = callingAssembly.GetName().Name;
+        this.version = version;
 
         if (!ExistsFromModFolder(modName))
             throw new FileNotFoundException($"Can't find ModConfig.xml for mod '{modName}'");
@@ -223,7 +226,7 @@ public class ModConfig
 
     public XmlDocument ReadFromUserData(string modName)
     {
-        var path = $"{GameIO.GetUserGameDataDir()}/{modName}.ModConfig.xml";
+        var path = GetPathFromUserData(modName);
 
         return ReadFromPath(path);
     }
